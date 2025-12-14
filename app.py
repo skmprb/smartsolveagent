@@ -1,26 +1,33 @@
 import streamlit as st
 
+st.title("Configuration Check")
+
 # Check if secrets are configured
 try:
     secrets = st.secrets["auth"]
-    if "YOUR_GOOGLE_CLIENT_ID" in secrets.client_id:
-        st.error("Please configure your Google OAuth credentials in .streamlit/secrets.toml")
-        st.stop()
-except KeyError:
-    st.error("Missing auth configuration in .streamlit/secrets.toml")
+    st.write("✅ Secrets loaded successfully")
+    
+    # Check each required field
+    required_fields = ["client_id", "client_secret", "redirect_uri", "cookie_secret"]
+    for field in required_fields:
+        if field in secrets:
+            if "YOUR_" in str(secrets[field]):
+                st.error(f"❌ {field} still has placeholder value")
+            else:
+                st.write(f"✅ {field} configured")
+        else:
+            st.error(f"❌ Missing {field}")
+            
+except Exception as e:
+    st.error(f"❌ Error loading secrets: {e}")
     st.stop()
 
-# If user is not logged in yet
-if not st.user.is_logged_in:
-    st.title("Welcome to SmartSolve!")
-    st.write("Please log in with Google to continue.")
-    if st.button("Log in with Google"):
+st.write("---")
+st.write("If all fields show ✅, try the login:")
+
+# Simple login test
+if st.button("Test Login"):
+    try:
         st.login()
-    st.stop()
-
-# Logged-in UI
-st.title(f"Welcome, {st.user.name}!")
-st.write(f"Your email: {st.user.email}")
-
-if st.button("Log out"):
-    st.logout()
+    except Exception as e:
+        st.error(f"Login error: {e}")
