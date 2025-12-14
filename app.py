@@ -39,6 +39,8 @@ if 'code' in query_params and not st.session_state.logged_in:
             )
             st.session_state.user_info = user_response.json()
             st.session_state.logged_in = True
+            # Clear URL parameters
+            st.query_params.clear()
             st.rerun()
     except Exception as e:
         st.error(f"Login failed: {e}")
@@ -59,12 +61,30 @@ if not st.session_state.logged_in:
         })
         st.markdown(f'<meta http-equiv="refresh" content="0; url={auth_url}">', unsafe_allow_html=True)
 else:
-    # Logged in UI
+    # Main Application
     user = st.session_state.user_info
-    st.title(f"Welcome, {user.get('name', 'User')}!")
-    st.write(f"Your email: {user.get('email', 'N/A')}")
     
-    if st.button("Log out"):
-        st.session_state.logged_in = False
-        st.session_state.user_info = None
-        st.rerun()
+    # Sidebar with user info and logout
+    with st.sidebar:
+        st.write(f"👋 {user.get('name', 'User')}")
+        st.write(f"📧 {user.get('email', 'N/A')}")
+        if st.button("🚪 Log out"):
+            st.session_state.logged_in = False
+            st.session_state.user_info = None
+            st.rerun()
+    
+    # Main app content
+    st.title("🧠 SmartSolve")
+    st.write("What would you like to work on today?")
+    
+    # Your main application features go here
+    tab1, tab2, tab3 = st.tabs(["📝 Tasks", "📊 Analytics", "⚙️ Settings"])
+    
+    with tab1:
+        st.write("Task management features")
+        
+    with tab2:
+        st.write("Analytics dashboard")
+        
+    with tab3:
+        st.write("Application settings")
