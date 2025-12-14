@@ -1,2 +1,4 @@
 streamlit
-Authlib
+streamlit-authenticator
+requests
+oauthlib
