@@ -1,5 +1,15 @@
 import streamlit as st
 
+# Check if secrets are configured
+try:
+    secrets = st.secrets["auth"]
+    if "YOUR_GOOGLE_CLIENT_ID" in secrets.client_id:
+        st.error("Please configure your Google OAuth credentials in .streamlit/secrets.toml")
+        st.stop()
+except KeyError:
+    st.error("Missing auth configuration in .streamlit/secrets.toml")
+    st.stop()
+
 # If user is not logged in yet
 if not st.user.is_logged_in:
     st.title("Welcome to SmartSolve!")
