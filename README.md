@@ -1,4 +1,6 @@
-# Streamlit Google OAuth App
+# Google OAuth Streamlit App
+
+A minimal Streamlit application with Google OAuth login/logout functionality.
 
 ## Setup
 
@@ -7,22 +9,27 @@
 pip install -r requirements.txt
 ```
 
-2. Configure Google OAuth:
-   - Go to Google Cloud Console → APIs & Services → Credentials
-   - Create OAuth 2.0 Client ID (Web application)
-   - Add redirect URI: `http://localhost:8501/oauth2callback`
+2. Create Google OAuth credentials:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select existing one
+   - Enable Google+ API
+   - Create OAuth 2.0 credentials
+   - Add `http://localhost:8501` to authorized redirect URIs
 
-3. Update `.streamlit/secrets.toml` with your credentials:
-   ```toml
-   [auth]
-   redirect_uri = "http://localhost:8501/oauth2callback"
-   cookie_secret = "YOUR_RANDOM_SECRET_STRING"
-   client_id = "YOUR_GOOGLE_CLIENT_ID"
-   client_secret = "YOUR_GOOGLE_CLIENT_SECRET"
-   server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
-   ```
+3. Set environment variables:
+```bash
+set GOOGLE_CLIENT_ID=your-client-id
+set GOOGLE_CLIENT_SECRET=your-client-secret
+```
 
 4. Run the app:
 ```bash
 streamlit run app.py
 ```
+
+## Features
+
+- Google OAuth login/logout
+- Display user profile information
+- Session management
+- Responsive UI
