@@ -3,7 +3,7 @@ import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
 import os
 
-REDIRECT_URI = "http://localhost:8501/"
+REDIRECT_URI = "http://localhost:8501"
 
 def create_flow():
     try:
@@ -31,7 +31,8 @@ def main():
         st.stop()
     
     # Check for authorization code in URL
-    auth_code = st.query_params.get("code")
+    query_params = st.experimental_get_query_params()
+    auth_code = query_params.get("code", [None])[0]
     
     if auth_code and st.session_state.user_info is None:
         try:
