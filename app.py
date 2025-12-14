@@ -14,6 +14,11 @@ config = st.secrets["auth"]
 
 # Handle OAuth callback
 query_params = st.query_params
+
+# Debug info
+st.write(f"Current URL params: {dict(query_params)}")
+st.write(f"Session logged_in: {st.session_state.logged_in}")
+
 if 'code' in query_params and not st.session_state.logged_in:
     code = query_params['code']
     
