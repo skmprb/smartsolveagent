@@ -15,12 +15,7 @@ pip install -r requirements.txt
    - Enable Google+ API
    - Create OAuth 2.0 credentials
    - Add `http://localhost:8501` to authorized redirect URIs
-
-3. Set environment variables:
-```bash
-set GOOGLE_CLIENT_ID=your-client-id
-set GOOGLE_CLIENT_SECRET=your-client-secret
-```
+   - Download the JSON file and rename it to `client-secret.json`
 
 4. Run the app:
 ```bash
