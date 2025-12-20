@@ -5,6 +5,8 @@
 # Google OAuth credentials
 client-secret.json
 tokens.json
+firestore-key.json
+firestore-key.json
 
 # Python
 __pycache__/

@@ -1,0 +1,12 @@
+# Set up Firestore:
+# 1. Go to Google Cloud Console
+# 2. Enable Firestore API
+# 3. Create service account key
+# 4. Download JSON and save as 'firestore-key.json'
+# 5. Set environment variable:
+
+# For Windows:
+# set GOOGLE_APPLICATION_CREDENTIALS=firestore-key.json
+
+# For Linux/Mac:
+# export GOOGLE_APPLICATION_CREDENTIALS=firestore-key.json

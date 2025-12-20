@@ -7,26 +7,18 @@ function App() {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const userId = urlParams.get('user_id');
+    const userEmail = urlParams.get('user_email');
     
-    if (userId && !userInfo) {
-      fetch(`http://localhost:5000/token/${userId}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.access_token) {
-            return fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${data.access_token}`);
-          }
-        })
-        .then(response => response.json())
-        .then(userData => {
-          setUserInfo(userData);
-          setLoading(false);
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          setLoading(false);
-        });
+    console.log('URL params:', window.location.search);
+    console.log('User email from URL:', userEmail);
+    
+    if (userEmail && !userInfo) {
+      console.log('Setting user info for:', userEmail);
+      // For now, just display the email since agent handles token retrieval
+      setUserInfo({ email: userEmail, name: 'User', id: userEmail });
+      setLoading(false);
     } else {
+      console.log('No user email found or userInfo already set');
       setLoading(false);
     }
   }, [userInfo]);
