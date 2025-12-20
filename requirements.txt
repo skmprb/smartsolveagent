@@ -1,3 +1,6 @@
-streamlit==1.28.1
-google-auth-oauthlib==1.0.0
-google-api-python-client==2.108.0
+streamlit
+google-auth-oauthlib
+google-api-python-client
+flask
+flask-cors
+requests

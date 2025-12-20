@@ -1,84 +1,101 @@
 import streamlit as st
-import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
-import os
+from google.oauth2.credentials import Credentials
+import requests
 
-REDIRECT_URI = "http://localhost:8501"
-
-def create_flow():
-    try:
-        flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-            "client-secret.json",
-            scopes=["https://www.googleapis.com/auth/userinfo.email", "openid", "https://www.googleapis.com/auth/userinfo.profile"],
-            redirect_uri=REDIRECT_URI
-        )
-        return flow
-    except FileNotFoundError:
-        st.error("client-secret.json file not found. Please download it from Google Cloud Console.")
-        return None
+def get_user_info(access_token):
+    credentials = Credentials(token=access_token)
+    service = build("oauth2", "v2", credentials=credentials)
+    return service.userinfo().get().execute()
 
 def main():
-    st.set_page_config(page_title="Google OAuth App", page_icon="🔐")
-    st.title("🔐 Google OAuth Login Demo")
+    st.set_page_config(page_title="Google OAuth App", page_icon="🔑")
+    st.title("🔑 Google OAuth Login Demo")
     
-    # Initialize session state
-    if "user_info" not in st.session_state:
-        st.session_state.user_info = None
+    # Check for user_id from backend callback
+    query_params = st.query_params
+    user_id = query_params.get("user_id")
     
-    # Create OAuth flow
-    flow = create_flow()
-    if not flow:
-        st.stop()
+    # Debug info
+    if user_id:
+        st.info(f"Found user_id: {user_id}")
     
-    # Check for authorization code in URL
-    query_params = st.experimental_get_query_params()
-    auth_code = query_params.get("code", [None])[0]
-    
-    if auth_code and st.session_state.user_info is None:
+    if user_id and "user_info" not in st.session_state:
+        # Get token from backend
         try:
-            flow.fetch_token(code=auth_code)
-            credentials = flow.credentials
-            
-            # Get user info
-            user_info_service = build("oauth2", "v2", credentials=credentials)
-            user_info = user_info_service.userinfo().get().execute()
-            
-            st.session_state.user_info = user_info
-            st.rerun()
+            st.info(f"Fetching token for user: {user_id}")
+            response = requests.get(f"http://localhost:5000/token/{user_id}")
+            if response.status_code == 200:
+                token_data = response.json()
+                st.success("Token retrieved successfully!")
+                user_info = get_user_info(token_data["access_token"])
+                st.session_state.user_info = user_info
+                st.rerun()
+            else:
+                st.error(f"Failed to get token: {response.status_code} - {response.text}")
         except Exception as e:
-            st.error(f"Authentication failed: {str(e)}")
+            st.error(f"Failed to retrieve user info: {str(e)}")
     
     # Display content based on authentication status
-    if st.session_state.user_info:
+    if "user_info" in st.session_state:
         # User is logged in
-        st.success("✅ Successfully logged in!")
+        st.success("✅ Successfully logged in with Google!")
         
         # Display user details
         user = st.session_state.user_info
-        col1, col2 = st.columns([1, 2])
         
+        # Create a nice card layout
+        with st.container():
+            col1, col2 = st.columns([1, 3])
+            
+            with col1:
+                if "picture" in user:
+                    st.image(user["picture"], width=120, caption="Profile Picture")
+                else:
+                    st.write("👤 No profile picture")
+            
+            with col2:
+                st.subheader(f"Welcome, {user.get('name', 'User')}! 👋")
+                
+                # User information in a clean format
+                st.markdown("### Account Information")
+                info_data = {
+                    "📧 Email": user.get('email', 'N/A'),
+                    "🆔 Google ID": user.get('id', 'N/A'),
+                    "✅ Verified Email": "Yes" if user.get('verified_email') else "No",
+                    "🌐 Locale": user.get('locale', 'N/A')
+                }
+                
+                for label, value in info_data.items():
+                    st.write(f"**{label}:** {value}")
+        
+        # Additional features section
+        st.markdown("---")
+        st.subheader("🔧 Available Actions")
+        
+        col1, col2, col3 = st.columns(3)
         with col1:
-            if "picture" in user:
-                st.image(user["picture"], width=100)
+            if st.button("🔄 Refresh Token", help="Refresh your authentication token"):
+                st.info("Token refresh functionality can be implemented here")
         
         with col2:
-            st.subheader("User Details")
-            st.write(f"**Name:** {user.get('name', 'N/A')}")
-            st.write(f"**Email:** {user.get('email', 'N/A')}")
-            st.write(f"**ID:** {user.get('id', 'N/A')}")
+            if st.button("📊 View Raw Data", help="Show raw user data from Google"):
+                st.json(user)
         
-        # Logout button
-        if st.button("🚪 Logout", type="primary"):
-            st.session_state.user_info = None
-            st.rerun()
+        with col3:
+            if st.button("🚪 Logout", type="primary", help="Sign out of your account"):
+                del st.session_state.user_info
+                st.rerun()
     
     else:
         # User is not logged in
         st.info("Please log in with your Google account to continue.")
         
-        if st.button("🔑 Sign in with Google", type="primary"):
-            authorization_url, _ = flow.authorization_url(access_type="offline", include_granted_scopes="true")
-            st.markdown(f'<meta http-equiv="refresh" content="0; url={authorization_url}">', unsafe_allow_html=True)
+        # Login link instead of button for better reliability
+        st.markdown(
+            '<a href="http://localhost:5000/auth" target="_self" style="display: inline-block; padding: 0.5rem 1rem; background-color: #ff4b4b; color: white; text-decoration: none; border-radius: 0.25rem; font-weight: bold;">🔑 Sign in with Google</a>',
+            unsafe_allow_html=True
+        )
 
 if __name__ == "__main__":
     main()

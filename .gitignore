@@ -1,8 +1,10 @@
 # Environment variables
 .env
-
+.venv/
+.adk/
 # Google OAuth credentials
 client-secret.json
+tokens.json
 
 # Python
 __pycache__/
@@ -20,3 +22,5 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+node_modules/
