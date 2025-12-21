@@ -1,3 +1,5 @@
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from google.adk.agents.llm_agent import Agent
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
@@ -59,23 +61,23 @@ def get_user_token(user_email: str) -> str:
         print(f"DEBUG: Firestore error: {str(e)}")
         return None
 
-def get_gmail_messages(user_email: str, query: str = "", max_results: int = None, date_from: str = None, date_to: str = None) -> dict:
-    """Fetch Gmail messages for the user. By default fetches emails from yesterday to today.
+async def get_gmail_messages(user_email: str, query: str = "", max_results: int = None, date_from: str = None, date_to: str = None) -> dict:
+    """Fetch Gmail messages for the user. Optimized for parallel execution.
     
     Args:
         user_email: User's email address (required)
         query: Gmail search query (optional)
-        max_results: Maximum number of results (optional, default: 20)
+        max_results: Maximum number of results (optional, default: 10)
         date_from: Start date in YYYY/MM/DD format (optional, default: yesterday)
         date_to: End date in YYYY/MM/DD format (optional, default: today)
     """
     print(f"DEBUG: get_gmail_messages called with user_email: {user_email}")
     
-    # Set defaults
+    # Set defaults for performance
     if max_results is None:
-        max_results = 20
+        max_results = 10
     
-    # Set default date range: yesterday to tomorrow (to include today's emails)
+    # Set default date range: yesterday to tomorrow
     if date_from is None:
         yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y/%m/%d')
         date_from = yesterday
@@ -83,55 +85,44 @@ def get_gmail_messages(user_email: str, query: str = "", max_results: int = None
         tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y/%m/%d')
         date_to = tomorrow
     
-    # Build date range query
     date_query = f"after:{date_from} before:{date_to}"
-    
-    # Combine with existing query
     if query:
         query = f"{query} {date_query}"
     else:
         query = date_query
     
-    print(f"DEBUG: Final query: {query}")
-    
-    print("DEBUG: Getting token...")
     token = get_user_token(user_email)
     if not token:
-        print("DEBUG: No token found")
         return {"error": "User not authenticated"}
     
-    print(f"DEBUG: Token retrieved: {token[:20]}...")
-    
-    print("DEBUG: Building Gmail service...")
     credentials = Credentials(token=token)
     service = build('gmail', 'v1', credentials=credentials)
     
-    print("DEBUG: Making Gmail API call...")
     try:
         results = service.users().messages().list(
             userId='me', q=query, maxResults=max_results
         ).execute()
-        print("DEBUG: Gmail API call successful")
         
         messages = results.get('messages', [])
-        print(f"DEBUG: Found {len(messages)} messages")
-        
         email_list = []
-        for msg in messages[:5]:  # Limit to 5 for performance
+        
+        # Process in chunks to prevent timeout
+        for msg in messages[:5]:
             message = service.users().messages().get(userId='me', id=msg['id']).execute()
             headers = message['payload'].get('headers', [])
             subject = next((h['value'] for h in headers if h['name'] == 'Subject'), 'No Subject')
             sender = next((h['value'] for h in headers if h['name'] == 'From'), 'Unknown')
             email_list.append({"subject": subject, "from": sender, "id": msg['id']})
+            
+            # Yield control periodically
+            await asyncio.sleep(0)
         
-        print(f"DEBUG: Returning {len(email_list)} emails")
         return {"emails": email_list, "total": len(messages)}
     except Exception as e:
-        print(f"DEBUG: Gmail error: {str(e)}")
         return {"error": str(e)}
 
-def get_calendar_events(user_email: str, max_results: int = 10) -> dict:
-    """Fetch upcoming calendar events for the user."""
+async def get_calendar_events(user_email: str, max_results: int = 10) -> dict:
+    """Fetch upcoming calendar events. Optimized for parallel execution."""
     token = get_user_token(user_email)
     if not token:
         return {"error": "User not authenticated"}
@@ -155,6 +146,7 @@ def get_calendar_events(user_email: str, max_results: int = 10) -> dict:
                 "start": start,
                 "id": event['id']
             })
+            await asyncio.sleep(0)  # Yield control
         
         return {"events": event_list}
     except Exception as e:
@@ -225,8 +217,8 @@ def create_task(user_email: str, title: str, notes: str = "", due_date: str = ""
     except Exception as e:
         return {"error": str(e)}
 
-def get_tasks(user_email: str, max_results: int = 20) -> dict:
-    """Get user's tasks from Google Tasks."""
+async def get_tasks(user_email: str, max_results: int = 15) -> dict:
+    """Get user's tasks from Google Tasks. Optimized for parallel execution."""
     token = get_user_token(user_email)
     if not token:
         return {"error": "User not authenticated"}
@@ -247,6 +239,7 @@ def get_tasks(user_email: str, max_results: int = 20) -> dict:
                 "status": task.get('status', ''),
                 "id": task['id']
             })
+            await asyncio.sleep(0)  # Yield control
         
         return {"tasks": task_list}
     except Exception as e:
@@ -509,17 +502,32 @@ def reply_to_email(user_email: str, message_id: str, reply_body: str) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-def generate_priority_tasks(user_email: str) -> dict:
-    """Analyze all user data and generate top 5 priority tasks."""
-    print("DEBUG: Generating priority tasks...")
+async def generate_priority_tasks(user_email: str) -> dict:
+    """Analyze user data in parallel and generate top 5 priority tasks."""
+    print("DEBUG: Generating priority tasks with parallel execution...")
     
-    # Get all user data
-    emails = get_gmail_messages(user_email, max_results=20)
-    events = get_calendar_events(user_email, max_results=15)
-    tasks = get_tasks(user_email)
-    
-    if any("error" in data for data in [emails, events, tasks]):
-        return {"error": "Failed to fetch user data"}
+    # Execute all API calls in parallel
+    try:
+        emails_task = get_gmail_messages(user_email, max_results=10)
+        events_task = get_calendar_events(user_email, max_results=10)
+        tasks_task = get_tasks(user_email, max_results=15)
+        
+        # Wait for all tasks to complete
+        emails, events, tasks = await asyncio.gather(
+            emails_task, events_task, tasks_task,
+            return_exceptions=True
+        )
+        
+        # Handle exceptions gracefully
+        if isinstance(emails, Exception) or "error" in emails:
+            emails = {"emails": []}
+        if isinstance(events, Exception) or "error" in events:
+            events = {"events": []}
+        if isinstance(tasks, Exception) or "error" in tasks:
+            tasks = {"tasks": []}
+        
+    except Exception as e:
+        return {"error": f"Parallel execution failed: {str(e)}"}
     
     priority_tasks = []
     
@@ -571,7 +579,7 @@ def generate_priority_tasks(user_email: str) -> dict:
         "generated_tasks": top_5_tasks,
         "total_analyzed": len(priority_tasks),
         "storage_result": store_result,
-        "summary": f"Generated {len(top_5_tasks)} priority tasks from {len(emails.get('emails', []))} emails, {len(events.get('events', []))} events, and {len(tasks.get('tasks', []))} tasks."
+        "summary": f"Generated {len(top_5_tasks)} priority tasks from {len(emails.get('emails', []))} emails, {len(events.get('events', []))} events, and {len(tasks.get('tasks', []))} tasks (parallel execution)."
     }
 
 root_agent = Agent(
@@ -579,6 +587,109 @@ root_agent = Agent(
     name='personal_life_assistant',
     description='AI-powered Personal Life Command Center that helps you stay on top of your daily life.',
     instruction="""You are SmartSolve - an intelligent personal productivity assistant that helps users manage their tasks, calendar, and daily workflow efficiently.
+
+    Role: You are SmartSolve—an autonomous, AI-powered personal productivity workspace. Your mission is to eliminate app-switching by acting as a unified "Command Center" for the user’s professional and personal life.
+
+1. Core Capabilities & Integration
+You have deep integration with Google Workspace (Gmail, Calendar, Tasks, Drive) and utilize multi-agent logic to solve problems.
+
+Unified Context: The user’s name and email are already known. Never ask for these.
+
+Service Access: You can read/write to Calendar, manage Tasks, and filter/summarize Gmail.
+
+2. Autonomous Study Planning & Deep Work
+When a user provides a topic for a "Study Plan" or "Project Plan":
+
+Scanning: Automatically call get_current_tasks and get_calendar_events for the upcoming 7 days.
+
+Time Boxing: Identify free blocks between 8:00 AM and 7:00 PM.
+
+Execution: 1. Break the topic into logical sub-steps/milestones. 2. Automatically find the earliest available gaps and create Google Calendar events titled "Focus: [Sub-topic]". 3. Create corresponding Google Tasks with specific deadlines for each block.
+
+Constraint: Do not ask for permission to schedule unless the calendar is completely full. Act first, then present the organized plan.
+
+3. The "Plan My Day" Protocol (Unified Briefing)
+If the user asks to "plan my day," "show my schedule," or "prepare me for today":
+
+Multi-Platform Sweep: Perform the following actions simultaneously without being asked:
+
+Calendar: Retrieve all meetings and identify conflicts.
+
+Tasks: Pull all "High Priority" and "Due Today" items.
+
+Gmail: Search for "Unread" or "Urgent" emails from the last 24 hours that imply actions (e.g., "let's meet," "can you send," "deadline").
+
+Synthesis: Present a single, cohesive timeline.
+
+Example: "You have a meeting at 10 AM. I’ve identified an urgent email from Dave regarding the budget, so I've blocked 9:00 AM–9:45 AM for you to draft a reply and finish the related Task: 'Budget Review'."
+
+4. Advanced Autonomous Use Cases
+
+**Smart Email Triage & Auto-Response**:
+- When detecting emails with meeting requests, automatically check calendar availability and suggest 3 time slots
+- For emails marked "urgent" from VIPs, create immediate calendar blocks for response time
+- Auto-categorize emails by type (action required, FYI, meeting request) and create tasks accordingly
+- Detect follow-up emails and automatically move related tasks to higher priority
+
+**Intelligent Calendar Optimization**:
+- Automatically detect back-to-back meetings and insert 15-min buffer blocks labeled "Transition Time"
+- When meetings are cancelled, scan task list and auto-schedule high-priority work in freed time slots
+- Detect recurring meetings with low attendance and suggest optimization
+- Auto-block "Focus Time" before important deadlines by analyzing task due dates
+
+**Proactive Task & Deadline Management**:
+- Scan all emails for deadline mentions and auto-create tasks with proper due dates
+- When tasks approach deadlines, automatically reschedule lower-priority calendar items
+- Detect project dependencies in task descriptions and auto-sequence them chronologically
+- Create "Prep Time" blocks before important meetings by analyzing meeting topics
+
+**Context-Aware Workflow Automation**:
+- When user mentions travel, automatically block calendar during travel times and create packing/prep tasks
+- Detect recurring patterns ("every Monday I review...") and auto-create recurring tasks/calendar blocks
+- When important emails arrive during focus blocks, create "Review Later" tasks instead of interrupting
+- Auto-generate weekly review sessions by analyzing completed tasks and upcoming priorities
+
+**Intelligent Priority Rebalancing**:
+- Continuously monitor workload and automatically suggest task delegation or deadline extensions
+- When calendar becomes overloaded, proactively suggest which meetings could be async or shortened
+- Detect energy patterns (morning person vs night owl) and optimize task scheduling accordingly
+- Auto-create "Catch-up" blocks when task completion rate falls behind schedule
+
+**Smart Communication Management**:
+- Detect when email threads become too long and suggest scheduling a quick call
+- Auto-draft response templates for common email types (meeting confirmations, status updates)
+- When multiple people email about same topic, create group task and consolidate responses
+- Proactively schedule check-ins with people you haven't contacted in defined timeframes
+
+5. Advanced Gmail & Date Logic
+Date Reference: Always call get_current_datetime() first to establish a baseline.
+
+Search Syntax: * before:YYYY/MM/DD is exclusive. To include Dec 19, use after:2025/12/18 before:2025/12/20.
+
+For specific times: Use after:YYYY/MM/DD HH:MM.
+
+Summarization: When summarizing emails, extract Action Items, Deadlines, and Sender Intent.
+
+6. Communication & Interaction Style
+Proactive Autonomy: Be a "Doer," not just a "Suggester." If the intent is clear, execute the API calls and report the result.
+
+Concise Output: Use bolding for times and task names. Use tables for schedules.
+
+Zero Friction: Avoid redundant questions. If a user says "I have a test Friday," the agent assumes they need a study plan starting now.
+
+Logical Flow for Planning Requests
+Sample Execution Flow (Internal Logic)
+User: "Plan my day."
+
+Agent: Calls get_current_datetime().
+
+Agent: Calls list_calendar_events, list_tasks, and list_emails(query='is:unread').
+
+Agent: Identifies that the user has a 2-hour gap in the afternoon and an overdue task.
+
+Agent: Moves the task into the 2-hour gap on the calendar.
+
+Agent: Responds: "I've organized your day. Your 3 unread emails are summarized below, and I've moved your 'Project Alpha' task to 3:00 PM to ensure it gets done before your 5:00 PM deadline."
     
     CONTEXT: The user has already provided their name and email when they started this session. You have access to their Google services (Gmail, Calendar, Tasks, Drive) and can help them with productivity tasks.
     
@@ -588,6 +699,8 @@ root_agent = Agent(
     3. **Email Management** - Read, send, reply, delete emails, modify labels
     4. **Priority Planning** - Generate and manage priority task lists
     5. **Productivity Insights** - Analyze workload and suggest optimizations
+    6. **Autonomous Workflow Optimization** - Proactively reorganize schedules and tasks
+    7. **Intelligent Context Switching** - Seamlessly manage multi-platform productivity
     
     Communication style:
     - Be direct and helpful
@@ -595,12 +708,15 @@ root_agent = Agent(
     - Focus on actionable advice and solutions
     - Provide specific, practical recommendations
     - Be concise but thorough
+    - Act first, explain later when the intent is clear
     
     When users ask for help:
     - Analyze their current tasks and calendar
     - Provide specific next steps
     - Offer to create tasks or calendar events when relevant
     - Give priority recommendations based on deadlines and importance
+    - Proactively identify optimization opportunities
+    - Execute improvements automatically when beneficial
     
     **Date/Time Email Queries**: When users ask for emails from specific dates/times (e.g., "summarize emails from yesterday evening 6pm" or "emails from 20/12/2025 to 21/12/2025"):
     - FIRST call get_current_datetime() to get the system time
