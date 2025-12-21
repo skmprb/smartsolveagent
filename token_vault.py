@@ -7,6 +7,8 @@ from google.cloud import firestore
 
 class TokenVault:
     def __init__(self):
+        # Set the path to the firestore key file
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'firestore-key.json'
         self.db = firestore.Client(database='smartsolve')
         self.collection = 'user_tokens'
     
@@ -15,6 +17,9 @@ class TokenVault:
         doc_ref.set({
             "access_token": credentials.token,
             "refresh_token": credentials.refresh_token,
+            "token_uri": credentials.token_uri,
+            "client_id": credentials.client_id,
+            "client_secret": credentials.client_secret,
             "expires_at": credentials.expiry.isoformat() if credentials.expiry else None,
             "updated_at": firestore.SERVER_TIMESTAMP
         })
@@ -30,8 +35,9 @@ class TokenVault:
         credentials = Credentials(
             token=token_data["access_token"],
             refresh_token=token_data["refresh_token"],
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=self._get_client_id()
+            token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
+            client_id=token_data.get("client_id") or self._get_client_id(),
+            client_secret=token_data.get("client_secret") or self._get_client_secret()
         )
         
         # Refresh if expired
@@ -44,3 +50,7 @@ class TokenVault:
     def _get_client_id(self):
         with open("client-secret.json", 'r') as f:
             return json.load(f)["web"]["client_id"]
+    
+    def _get_client_secret(self):
+        with open("client-secret.json", 'r') as f:
+            return json.load(f)["web"]["client_secret"]
