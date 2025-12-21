@@ -31,7 +31,8 @@ vault = TokenVault()
 # Session storage
 user_sessions = {}
 
-REDIRECT_URI = "http://localhost:5000/callback"
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:5000/callback")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 def create_flow():
     return google_auth_oauthlib.flow.Flow.from_client_secrets_file(
@@ -81,8 +82,8 @@ def callback(request: Request):
         # Store tokens using email as key
         vault.store_token(user_email, flow.credentials)
         
-        # Redirect back to frontend with email (updated for Vite port)
-        return RedirectResponse(url=f"http://localhost:5173?user_email={user_email}")
+        # Redirect back to frontend with email (updated for dynamic URL)
+        return RedirectResponse(url=f"{FRONTEND_URL}?user_email={user_email}")
     except Exception as e:
         print(f"OAuth callback error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
@@ -130,9 +131,10 @@ def create_session(request: CreateSessionRequest):
     user_sessions[request.user_email] = session_id
     
     # Create session with ADK agent
+    agent_url = os.getenv("AGENT_URL", "http://localhost:8080")
     try:
         response = requests.post(
-            f"http://localhost:8080/apps/smartsolve/users/{request.user_email}/sessions/{session_id}",
+            f"{agent_url}/apps/smartsolve/users/{request.user_email}/sessions/{session_id}",
             json={},
             timeout=10
         )
@@ -153,8 +155,9 @@ def chat(request: ChatRequest):
             user_sessions[request.user_email] = session_id
         
         # Send message to ADK agent using /run endpoint
+        agent_url = os.getenv("AGENT_URL", "http://localhost:8080")
         response = requests.post(
-            "http://localhost:8080/run",
+            f"{agent_url}/run",
             json={
                 "appName": "smartsolve",
                 "userId": request.user_email,
@@ -193,16 +196,18 @@ def optimize(request: OptimizeRequest):
             user_sessions[request.user_email] = session_id
             
             # Create session with ADK
+            agent_url = os.getenv("AGENT_URL", "http://localhost:8080")
             requests.post(
-                f"http://localhost:8080/apps/smartsolve/users/{request.user_email}/sessions/{session_id}",
+                f"{agent_url}/apps/smartsolve/users/{request.user_email}/sessions/{session_id}",
                 json={},
                 timeout=10
             )
         
         # Send optimization request to ADK agent
         optimize_message = f"Analyze and optimize this schedule: Tasks: {request.tasks}, Events: {request.events}"
+        agent_url = os.getenv("AGENT_URL", "http://localhost:8080")
         response = requests.post(
-            "http://localhost:8080/run",
+            f"{agent_url}/run",
             json={
                 "appName": "smartsolve",
                 "userId": request.user_email,

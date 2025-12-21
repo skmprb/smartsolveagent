@@ -29,7 +29,7 @@ function App() {
             console.log("Auth redirect detected for", email);
             setUserEmail(email);
             // We have a user_email, fetch the token
-            fetch(`http://localhost:5000/token/${email}`)
+            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/token/${email}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.access_token) {

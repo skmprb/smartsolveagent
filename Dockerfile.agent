@@ -14,9 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy agent code
 COPY smartsolve/ ./smartsolve/
+COPY main.py .
 COPY client-secret.json .
 COPY firestore-key.json .
 
 EXPOSE 8080
 
-CMD ["python", "-m", "google.adk.agents.server", "--app_name", "smartsolve", "--port", "8080"]
+CMD ["python", "main.py"]

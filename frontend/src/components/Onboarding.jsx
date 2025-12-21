@@ -46,7 +46,7 @@ const Onboarding = ({ onFinish }) => {
                 <div className="flex flex-col gap-3 max-w-md mx-auto">
                     {/* Primary Action */}
                     <a
-                        href="http://localhost:5000/auth"
+                        href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/auth`}
                         className="group relative flex w-full items-center justify-center rounded-xl bg-primary px-6 py-4 text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all duration-200"
                     >
                         <span className="absolute left-6 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">

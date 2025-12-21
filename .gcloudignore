@@ -1,0 +1,14 @@
+.gcloudignore
+.git
+.gitignore
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+node_modules/

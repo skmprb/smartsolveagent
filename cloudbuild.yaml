@@ -1,35 +1,35 @@
 steps:
   # Build Agent
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/smartsolve-agent', '-f', 'Dockerfile.agent', '.']
+    args: ['build', '-t', 'gcr.io/gen-lang-client-0005433326/smartsolve-agent', '-f', 'Dockerfile.agent', '.']
   
   # Build Backend  
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/smartsolve-backend', '-f', 'Dockerfile.backend', '.']
+    args: ['build', '-t', 'gcr.io/gen-lang-client-0005433326/smartsolve-backend', '-f', 'Dockerfile.backend', '.']
   
   # Build Frontend
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/smartsolve-frontend', '-f', 'Dockerfile.frontend', '.']
+    args: ['build', '-t', 'gcr.io/gen-lang-client-0005433326/smartsolve-frontend', '-f', 'Dockerfile.frontend', '.']
 
   # Push images
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/smartsolve-agent']
+    args: ['push', 'gcr.io/gen-lang-client-0005433326/smartsolve-agent']
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/smartsolve-backend']
+    args: ['push', 'gcr.io/gen-lang-client-0005433326/smartsolve-backend']
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/smartsolve-frontend']
+    args: ['push', 'gcr.io/gen-lang-client-0005433326/smartsolve-frontend']
 
   # Deploy to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['run', 'deploy', 'smartsolve-agent', '--image', 'gcr.io/$PROJECT_ID/smartsolve-agent', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated']
+    args: ['run', 'deploy', 'smartsolve-agent', '--image', 'gcr.io/gen-lang-client-0005433326/smartsolve-agent', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated']
   
   - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['run', 'deploy', 'smartsolve-backend', '--image', 'gcr.io/$PROJECT_ID/smartsolve-backend', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated']
+    args: ['run', 'deploy', 'smartsolve-backend', '--image', 'gcr.io/gen-lang-client-0005433326/smartsolve-backend', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated', '--set-env-vars', 'AGENT_URL=https://smartsolve-agent-j4czxf7gdq-uc.a.run.app,REDIRECT_URI=https://smartsolve-backend-j4czxf7gdq-uc.a.run.app/callback,FRONTEND_URL=https://smartsolve-frontend-j4czxf7gdq-uc.a.run.app']
   
   - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['run', 'deploy', 'smartsolve-frontend', '--image', 'gcr.io/$PROJECT_ID/smartsolve-frontend', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated']
+    args: ['run', 'deploy', 'smartsolve-frontend', '--image', 'gcr.io/gen-lang-client-0005433326/smartsolve-frontend', '--region', 'us-central1', '--platform', 'managed', '--allow-unauthenticated']
 
 images:
-  - 'gcr.io/$PROJECT_ID/smartsolve-agent'
-  - 'gcr.io/$PROJECT_ID/smartsolve-backend'
-  - 'gcr.io/$PROJECT_ID/smartsolve-frontend'
+  - 'gcr.io/gen-lang-client-0005433326/smartsolve-agent'
+  - 'gcr.io/gen-lang-client-0005433326/smartsolve-backend'
+  - 'gcr.io/gen-lang-client-0005433326/smartsolve-frontend'

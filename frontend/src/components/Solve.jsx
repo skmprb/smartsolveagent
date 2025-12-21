@@ -7,6 +7,8 @@ const Solve = ({ navigate, accessToken, initialQuery, userEmail, onClearQuery, u
     const [sessionId, setSessionId] = useState(null);
     const chatContainerRef = useRef(null);
     const sessionInitialized = useRef(false);
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 
     const formatMessage = (content) => {
         return content
@@ -36,20 +38,20 @@ const Solve = ({ navigate, accessToken, initialQuery, userEmail, onClearQuery, u
     const initializeSession = async () => {
         try {
             // Create new session
-            const sessionRes = await fetch('http://localhost:5000/create_session', {
+            const sessionRes = await fetch(`${API_URL}/create_session`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_email: userEmail })
             });
             const sessionData = await sessionRes.json();
-            
+
             if (sessionData.session_id) {
                 setSessionId(sessionData.session_id);
-                
+
                 // Send introduction message after session is created
                 const userName = user?.name || user?.given_name || userEmail.split('@')[0];
                 const introMessage = `Hi, I'm ${userName} and my email is ${userEmail}. I'm using SmartSolve dashboard to manage my tasks, calendar events, and get AI assistance. Please remember my details for our conversation.`;
-                
+
                 // Wait a bit to ensure session is set
                 setTimeout(() => {
                     sendMessageToAgent(introMessage, sessionData.session_id, true);
@@ -64,7 +66,7 @@ const Solve = ({ navigate, accessToken, initialQuery, userEmail, onClearQuery, u
         const useSessionId = currentSessionId || sessionId;
         setIsThinking(true);
         try {
-            const res = await fetch('http://localhost:5000/chat', {
+            const res = await fetch(`${API_URL}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -75,7 +77,7 @@ const Solve = ({ navigate, accessToken, initialQuery, userEmail, onClearQuery, u
                 })
             });
             const data = await res.json();
-            
+
             if (data.content) {
                 const aiResponse = {
                     id: Date.now() + 1,
@@ -84,7 +86,7 @@ const Solve = ({ navigate, accessToken, initialQuery, userEmail, onClearQuery, u
                     content: data.content,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
-                
+
                 if (isIntro) {
                     // For intro, only add AI response
                     setMessages([aiResponse]);
@@ -161,7 +163,7 @@ const Solve = ({ navigate, accessToken, initialQuery, userEmail, onClearQuery, u
                         <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Online</span>
                     </div>
                 </div>
-                <button 
+                <button
                     onClick={handleNewSession}
                     className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300"
                     title="New Session"

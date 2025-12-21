@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set your project ID
-PROJECT_ID="your-project-id"
+PROJECT_ID="gen-lang-client-0005433326"
 REGION="us-central1"
 
 # Enable required APIs
